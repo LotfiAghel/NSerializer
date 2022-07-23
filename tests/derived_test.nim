@@ -38,7 +38,7 @@ type
   DerivedType* = object of BaseType
     c*: int
     d*: string
-   
+
   DerivedRefType* = ref object of BaseType
     c*: int
     d*: string
@@ -47,13 +47,13 @@ type
 
   DerivedFromRefType* = ref object of DerivedRefType
     e*: int
-    next* :DerivedRefType
+    next*: DerivedRefType
     list: seq[DerivedRefType]
 
   RefTypeDerivedFromRoot* = ref object of RootObj
     a*: int
     b*: string
-    
+
 
   Foo = object
     x*: uint64
@@ -82,12 +82,12 @@ type
     B
 
   CaseObject* = object
-   case kind*: ObjectKind
-   of A:
-     a*: int
-     other*: CaseObjectRef
-   else:
-     b*: int
+    case kind*: ObjectKind
+    of A:
+      a*: int
+      other*: CaseObjectRef
+    else:
+      b*: int
 
   CaseObjectRef* = ref CaseObject
 
@@ -117,7 +117,7 @@ type
 
 
 let jsonNode = parseJson("""{"key": 3.14}""")
-jsonNode.add("type",parseJson("\"aa\""))
+jsonNode.add("type", parseJson("\"aa\""))
 echo jsonNode
 
 
@@ -139,25 +139,31 @@ let
   c = RefTypeDerivedFromRoot(a: high(int), b: "")
   d = DerivedType(a: "a field", b: 1000, c: 10, d: "d field")
   e = DerivedRefType(a: "a field", b: -1000, c: 10, d: "")
-  f = DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12,time: now().utc,next:DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12,time: now().utc))
+  f = DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc,
+    next: DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12,
+        time: now().utc),
+   list: @[DerivedRefType(a: "a field", b: -1000, c: 10, d: "",
+   time: now().utc,
+    ),
+    DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc)])
 #var z=getField(f)
 static:
-    echo "static"
-    
+  echo "static"
+
 
 
 
 echo f.getName()
-echo f.next!=nil
+echo f.next != nil
 echo "==============--===="
-var z=f.toJson()
+var z = f.toJson()
 echo "==============--==== json"
 echo z
 dumpTree:
-    f.b
-    a
+  f.b
+  a
 
 echo f.dot("a")
 
 enumAllSerializedFields(DerivedFromRefType):
-      echo fieldName  
+  echo fieldName

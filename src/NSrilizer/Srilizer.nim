@@ -20,7 +20,7 @@ template defineGetName*(T:type)=
     return name(T) # if you write T.Name and T has filed with name you got error
 
 template defineGetNameP*(T:type)=
-  proc getName(t:T):string=
+  proc getName(t:ptr T):string=
     return name(T) # if you write T.Name and T has filed with name you got error
 
 defineGetNameP(int)
@@ -30,20 +30,23 @@ defineGetNameP(string)
 defineGetNameBM(DateTime)
 
 
-proc toJson*(t:int):JsonNode =
-  return JsonNode(kind:JInt,num:t)
+proc toJson*(t:ptr int):JsonNode =
+  return JsonNode(kind:JInt,num:t[])
 
 proc toJson*(t:DateTime):JsonNode =
   return JsonNode(kind:JString,str:"TODO")
 
-proc toJson*(t:string):JsonNode =
-  return JsonNode(kind:JString,str:t)
+proc toJson*(t:ptr string):JsonNode =
+  return JsonNode(kind:JString,str:t[])
 
 
-proc toJson*[T](t:var seq[T]):JsonNode =
+proc toJson*[T](t:ptr seq[T]):JsonNode =
   result=JsonNode(kind:JArray)
-  for i in t:
-    result.add toJson(i)
+  for i in 0..<t[].len:
+    when T is ref|ptr:
+      result.add toJson(t[][i])
+    else:
+      result.add toJson(t[][i].addr)
   
 #[method toJson*(t:BaseType):JsonNode {.base.}=
   return parseJson("""{"$type": \"BaseType\"}""")]#
@@ -58,6 +61,8 @@ macro dot*(obj: ref object, fld: string): untyped =
   newDotExpr(obj, newIdentNode(fld.strVal))
 
 
+macro dot*(obj: ptr object, fld: string): untyped =
+  newDotExpr(obj, newIdentNode(fld.strVal))
 
 macro dot*(obj: object, fld: string): untyped =
   newDotExpr(obj, newIdentNode(fld.strVal))
@@ -67,31 +72,36 @@ macro dot*(obj: object, fld: string): untyped =
 
 
 template defineToJsonP*(T:type)=
-  proc toJson(t:T):JsonNode=
+  proc toJson(t:ptr T):JsonNode=
     result=JsonNode(kind:JObject) #,fields:{: t.getName.toJson}.toOrderedTable)
-    result.add("$type",t.getName.toJson)
+    when T  is ref|ptr:
+      result.add("$type",t.getName.toJson)
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
-      var tmp= t.dot($(fieldName))
+      
       when FieldType  is ref|ptr:
+        var tmp= t.dot($(fieldName))
         if tmp != nil:
             result.add(fieldName,tmp.toJson())
         else:
             echo "nil"    
       else:
+        var tmp= t.dot($(fieldName)).addr
         result.add(fieldName,tmp.toJson())
   proc fromJson(t:T,js:JsonNode):JsonNode=
     #result=cast
     
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
-      var tmp= t.dot($(fieldName))
+      
       when FieldType  is ref|ptr:
+        var tmp= t.dot($(fieldName))
         if tmp != nil:
             result.add(fieldName,tmp.toJson())
         else:
             echo "nil"    
       else:
+        var tmp= t.dot($(fieldName)).addr
         result.add(fieldName,tmp.toJson())
 
 
@@ -127,31 +137,36 @@ template defineToJsonBM*(T:type)=
 
 
 template defineToJson*(T:type)=
-  method toJson(t:T):JsonNode=
-    result=JsonNode(kind:JObject,fields:{"$type": t.getName.toJson}.toOrderedTable)
+  method toJson(t:var T):JsonNode=
+    result=JsonNode(kind:JObject)
     
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
-      var tmp= t.dot($(fieldName))
+      
       when FieldType  is ref|ptr:
+        result.add("$type",t.getName.toJson)
+        var tmp= t.dot($(fieldName))
         if tmp != nil:
             result.add(fieldName,t.dot($(fieldName)).toJson())
         else:
             echo "nil"    
       else:
+        var tmp = t.dot($(fieldName)).addr
         result.add(fieldName,tmp.toJson())
   proc fromJson(t:T,js:JsonNode):JsonNode=
     #result=cast
     
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
-      var tmp= t.dot($(fieldName))
+      
       when FieldType  is ref|ptr:
+        var tmp= t.dot($(fieldName))
         if tmp != nil:
             result.add(fieldName,tmp.toJson())
         else:
             echo "nil"    
       else:
+        var tmp= t.dot($(fieldName)).addr
         result.add(fieldName,tmp.toJson())
 
 
