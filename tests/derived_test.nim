@@ -142,10 +142,11 @@ let
   f = DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc,
     next: DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12,
         time: now().utc),
-   list: @[DerivedRefType(a: "a field", b: -1000, c: 10, d: "",
-   time: now().utc,
-    ),
-    DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc)])
+   list: @[
+      DerivedRefType(a: "a 0 field", b: -1000, c: 10, d: "", time: now().utc),
+      DerivedRefType(a: "a 1 field", b: -1000, c: 10, d: "", time: now().utc),
+      DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc,list: @[DerivedRefType(a: "a field", b: -1000, c: 10, d: "", time: now().utc)])
+    ])
 #var z=getField(f)
 static:
   echo "static"
@@ -157,8 +158,21 @@ echo f.getName()
 echo f.next != nil
 echo "==============--===="
 var z = f.toJson()
-echo "==============--==== json"
 echo z
+echo "==============--==== json"
+
+var f2 = DerivedFromRefType()
+
+echo "f2.list.len " , f2.list.len
+fromJson(f2, z)
+
+echo f.list.len
+echo "f2.list.len " , f2.list.len
+
+
+echo "================== ft.tojson"
+echo f2.toJson()
+echo s_creators.len
 dumpTree:
   f.b
   a

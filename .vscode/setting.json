@@ -1,0 +1,23 @@
+{
+    "taskName": "Run module.nim",
+    "command": "nim",
+    "args": ["c", "-r", "src/main.nim"],
+    "options": {
+        "cwd": "${workspaceRoot}"
+    },
+    "type": "shell",
+    "group": {
+        "kind": "build",
+        "isDefault": true
+    },
+    "nim.provider": "lsp",
+    "nim.projectMapping": [{
+        "projectPath": "tests/all.nim",
+        "fileRegex": "tests/.*\\.nim"
+    },
+    {
+        "projectPath": "src/main.nim",
+        "fileRegex": ".*\\.nim"
+    }]
+}
+

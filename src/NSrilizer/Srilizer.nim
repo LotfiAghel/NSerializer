@@ -10,6 +10,9 @@ import
   std/json
 
 
+var s_creators* : Table[string,proc():ref RootObj ]
+
+
 template defineGetNameBM*(T:type)=
   method getName(t:T):string{.base.}=
     return T.name
@@ -33,8 +36,11 @@ defineGetNameBM(DateTime)
 proc toJson*(t:ptr int):JsonNode =
   return JsonNode(kind:JInt,num:t[])
 
-proc toJson*(t:DateTime):JsonNode =
+proc toJson*(t:ptr DateTime):JsonNode =
   return JsonNode(kind:JString,str:"TODO")
+
+proc fromJson*(t:ptr DateTime,js:JsonNode) =
+  t[]= now().utc # TODO wrong 
 
 proc toJson*(t:ptr string):JsonNode =
   return JsonNode(kind:JString,str:t[])
@@ -45,6 +51,9 @@ proc fromJson*(T:typedesc[string];t:ptr string,js:JsonNode) =
 
 proc fromJson*(t:ptr string,js:JsonNode) =
   t[]=js.str
+
+proc fromJson*(t:ptr int,js:JsonNode) =
+  t[]=js.num.int
 
 proc toJson*[T](t:ptr seq[T]):JsonNode =
   result=JsonNode(kind:JArray)
@@ -59,18 +68,41 @@ proc fromJsonS*[T](t:ptr seq[T],js:JsonNode) =
   for i in 0..<js.elems.len:
     T.fromJson(t[][i].addr,js.elems[i]  )
 
+proc createWithName(defaultName:string,js:JsonNode):ref RootObj=
+  echo fmt"create {defaultName} ", js
+  if js.hasKey("$type"):
+    var z=js["$type"].str
+    echo fmt"create {z}"
+    result=s_creators[z]()
+  else:
+    result=s_creators[defaultName]()
+
 proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
   t[].setlen(js.elems.len)
   for i in 0..<js.elems.len:
-    fromJson(t[][i].addr,js.elems[i]  )
+    when T is ref|ptr:
+      static:
+        echo "T is ref|ptr"
+      echo fmt"T is ref|ptr {i}"
+      var tmp=createWithName(name(T),js.elems[i])# T() #TODO handle drived class
+      t[][i]=cast[T](tmp)
+      fromJson(t[][i],js.elems[i]  )
+    else:
+      static:
+        echo "not T is ref|ptr"
+      echo "not T is ref|ptr"
+      fromJson(t[][i].addr,js.elems[i]  )
+      
 
 #[method toJson*(t:BaseType):JsonNode {.base.}=
   return parseJson("""{"$type": \"BaseType\"}""")]#
 
 
 method toJson*(t:RootObj):JsonNode {.base.}=
-  return parseJson("""{"$type": \"BaseType\"}""")
+  return parseJson("""{"$type": \"RootObj\"}""")
 
+method fromJson*(t:ptr RootObj,js:JsonNode) {.base.}=
+  discard
 
 
 macro dot*(obj: ref object, fld: string): untyped =
@@ -111,7 +143,7 @@ template defineToJsonP*(T:type)=
       echo fieldName  ,": ",FieldType ," : "
       
       when FieldType  is ref|ptr:
-        var tmp=FieldType()
+        var tmp=FieldType() #TODO handle drived class
         fromJson(tmp.addr,js[fieldName])
         t.dot($(fieldName))=tmp
       else:
@@ -155,30 +187,35 @@ template defineToJsonBM*(T:type)=
             echo "nil"    
       else:
         result.add(fieldName,tmp.toJson())
-  proc fromJson(t:T,js:JsonNode):JsonNode=
-    #result=cast
-    
+  method fromJson*(t:  T,js:JsonNode){.base.}=
+
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
-      var tmp= t.dot($(fieldName))
+      
       when FieldType  is ref|ptr:
-        if tmp != nil:
-            result.add(fieldName,tmp.toJson())
-        else:
-            echo "nil"    
+        var tmp=FieldType()
+        fromJson(tmp,js[fieldName])
+        t.dot($(fieldName))=tmp
       else:
-        result.add(fieldName,tmp.toJson())
+        var tmpP= t.dot($(fieldName)).addr
+        fromJson(tmpP,js[fieldName])
 
 
 template defineToJson*(T:type)=
-  method toJson(t:var T):JsonNode=
+  static:
+      echo "define toJson for ", name(T)
+  s_creators[name(T)]= proc():ref RootObj=
+    return T()
+  method toJson*(t: T):JsonNode=
+    
     result=JsonNode(kind:JObject)
     
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
       
       when FieldType  is ref|ptr:
-        result.add("$type",t.getName.toJson)
+        var name=t.getName
+        result.add("$type",name.addr.toJson)
         var tmp= t.dot($(fieldName))
         if tmp != nil:
             result.add(fieldName,t.dot($(fieldName)).toJson())
@@ -187,21 +224,19 @@ template defineToJson*(T:type)=
       else:
         var tmp = t.dot($(fieldName)).addr
         result.add(fieldName,tmp.toJson())
-  proc fromJson(t:T,js:JsonNode):JsonNode=
-    #result=cast
-    
+
+  method fromJson*(t: T,js:JsonNode)=
+
     enumAllSerializedFields(T):
       echo fieldName  ,": ",FieldType ," : "
-      
-      when FieldType  is ref|ptr:
-        var tmp= t.dot($(fieldName))
-        if tmp != nil:
-            result.add(fieldName,tmp.toJson())
+      if(js.hasKey(fieldName)):
+        when FieldType  is ref|ptr:
+          var tmp=FieldType()
+          fromJson(tmp,js[fieldName])
+          t.dot($(fieldName))=tmp
         else:
-            echo "nil"    
-      else:
-        var tmp= t.dot($(fieldName)).addr
-        result.add(fieldName,tmp.toJson())
+          var tmpP= t.dot($(fieldName)).addr
+          fromJson(tmpP,js[fieldName])
 
 
 
