@@ -83,14 +83,14 @@ proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
     when T is ref|ptr:
       static:
         echo "T is ref|ptr"
-      echo fmt"T is ref|ptr {i}"
+      #echo fmt"T is ref|ptr {i}"
       var tmp=createWithName(name(T),js.elems[i])# T() #TODO handle drived class
       t[][i]=cast[T](tmp)
       fromJson(t[][i],js.elems[i]  )
     else:
       static:
         echo "not T is ref|ptr"
-      echo "not T is ref|ptr"
+      #echo "not T is ref|ptr"
       fromJson(t[][i].addr,js.elems[i]  )
       
 
@@ -100,6 +100,13 @@ proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
 
 method toJson*(t:RootObj):JsonNode {.base.}=
   return parseJson("""{"$type": \"RootObj\"}""")
+
+method toJson*(t:ptr RootObj):JsonNode {.base.}=
+  return parseJson("""{"$type": \"RootObj\"}""")
+
+method toJson*(t:ref RootObj):JsonNode {.base.}=
+  return parseJson("""{"$type": \"RootObj\"}""")
+
 
 method fromJson*(t:ptr RootObj,js:JsonNode) {.base.}=
   discard
@@ -140,7 +147,7 @@ template defineToJsonP*(T:type)=
   proc fromJson*(t: ptr T,js:JsonNode)=
 
     enumAllSerializedFields(T):
-      echo fieldName  ,": ",FieldType ," : "
+      #echo fieldName  ,": ",FieldType ," : "
       
       when FieldType  is ref|ptr:
         var tmp=FieldType() #TODO handle drived class
@@ -178,7 +185,7 @@ template defineToJsonBM*(T:type)=
     result=JsonNode(kind:JObject,fields:{"$type": t.getName.toJson}.toOrderedTable)
     
     enumAllSerializedFields(T):
-      echo fieldName  ,": ",FieldType ," : "
+      #echo fieldName  ,": ",FieldType ," : "
       var tmp= t.dot($(fieldName))
       when FieldType  is ref|ptr:
         if tmp != nil:
@@ -190,7 +197,7 @@ template defineToJsonBM*(T:type)=
   method fromJson*(t:  T,js:JsonNode){.base.}=
 
     enumAllSerializedFields(T):
-      echo fieldName  ,": ",FieldType ," : "
+      #echo fieldName  ,": ",FieldType ," : "
       
       when FieldType  is ref|ptr:
         var tmp=FieldType()
@@ -209,13 +216,16 @@ template defineToJson*(T:type)=
   method toJson*(t: T):JsonNode=
     
     result=JsonNode(kind:JObject)
+    when T  is ref|ptr:
+        var name=t.getName
+        result.add("$type",name.addr.toJson)
     
     enumAllSerializedFields(T):
-      echo fieldName  ,": ",FieldType ," : "
+      static:
+        echo "toJson f",fieldName  ,": ",FieldType ," : ",FieldType  is ref|ptr
       
       when FieldType  is ref|ptr:
         var name=t.getName
-        result.add("$type",name.addr.toJson)
         var tmp= t.dot($(fieldName))
         if tmp != nil:
             result.add(fieldName,t.dot($(fieldName)).toJson())
@@ -228,7 +238,7 @@ template defineToJson*(T:type)=
   method fromJson*(t: T,js:JsonNode)=
 
     enumAllSerializedFields(T):
-      echo fieldName  ,": ",FieldType ," : "
+      #echo fieldName  ,": ",FieldType ," : "
       if(js.hasKey(fieldName)):
         when FieldType  is ref|ptr:
           var tmp=FieldType()

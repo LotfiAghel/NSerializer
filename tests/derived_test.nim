@@ -50,9 +50,15 @@ type
     next*: DerivedRefType
     list: seq[DerivedRefType]
 
+  GenericTest*[T]=  ref object of DerivedRefType
+    t*:T
+  GenericTestInt* =  ref object of DerivedRefType
+    t*:int
+
   RefTypeDerivedFromRoot* = ref object of RootObj
     a*: int
     b*: string
+  
 
 
   Foo = object
@@ -114,6 +120,8 @@ type
     t1*: AnonTuple
     t2*: AbcTuple
     t3*: XyzTuple
+  
+  
 
 
 let jsonNode = parseJson("""{"key": 3.14}""")
@@ -128,24 +136,33 @@ echo jsonNode
 defineToAll(DerivedRefType)
 
 
-
 defineToAll(DerivedFromRefType)
+defineToAll(GenericTestInt)
+defineToAll(GenericTest[int])
 
 
-
+var zzzz:DerivedRefType= GenericTest[int](t:123456)
+echo zzzz.getName()
+echo "zzzz.getName"
 let
   a = BaseType(a: "test", b: -1000)
   b = BaseTypeRef(a: "another test", b: 2000)
   c = RefTypeDerivedFromRoot(a: high(int), b: "")
   d = DerivedType(a: "a field", b: 1000, c: 10, d: "d field")
   e = DerivedRefType(a: "a field", b: -1000, c: 10, d: "")
+  e2= GenericTest[int](t:123456)
+  e3= GenericTestInt(t:123456)
   f = DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc,
     next: DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12,
         time: now().utc),
    list: @[
-      DerivedRefType(a: "a 0 field", b: -1000, c: 10, d: "", time: now().utc),
-      DerivedRefType(a: "a 1 field", b: -1000, c: 10, d: "", time: now().utc),
-      DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12, time: now().utc,list: @[DerivedRefType(a: "a field", b: -1000, c: 10, d: "", time: now().utc)])
+      DerivedRefType(a: "aaaaaa", b: -1000, c: 10, d: "", time: now().utc),
+      DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12,
+        time: now().utc),
+      GenericTestInt(t:123456),
+      GenericTest[int](t:123456),
+      
+      
     ])
 #var z=getField(f)
 static:
