@@ -27,6 +27,7 @@ template defineGetNameP*(T:type)=
     return name(T) # if you write T.Name and T has filed with name you got error
 
 defineGetNameP(int)
+defineGetNameP(bool)
 
 defineGetNameP(string)
 
@@ -35,6 +36,9 @@ defineGetNameBM(DateTime)
 
 proc toJson*(t:ptr int):JsonNode =
   return JsonNode(kind:JInt,num:t[])
+
+proc toJson*(t:ptr bool):JsonNode =
+  return JsonNode(kind:JBool,bval:t[])
 
 proc toJson*(t:ptr DateTime):JsonNode =
   return JsonNode(kind:JString,str:"TODO")
@@ -54,6 +58,9 @@ proc fromJson*(t:ptr string,js:JsonNode) =
 
 proc fromJson*(t:ptr int,js:JsonNode) =
   t[]=js.num.int
+
+proc fromJson*(t:ptr bool,js:JsonNode) =
+  t[]=js.bval
 
 proc toJson*[T](t:ptr seq[T]):JsonNode =
   result=JsonNode(kind:JArray)
@@ -99,18 +106,20 @@ proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
 
 
 method toJson*(t:RootObj):JsonNode {.base.}=
-  return parseJson("""{"$type": \"RootObj\"}""")
+  return JsonNode(kind:JObject,fields:OrderedTable[string,JsonNode]())
 
 method toJson*(t:ptr RootObj):JsonNode {.base.}=
   return parseJson("""{"$type": \"RootObj\"}""")
 
 method toJson*(t:ref RootObj):JsonNode {.base.}=
-  return parseJson("""{"$type": \"RootObj\"}""")
+  return JsonNode(kind:JObject,fields:OrderedTable[string,JsonNode]())
 
 
 method fromJson*(t:ptr RootObj,js:JsonNode) {.base.}=
   discard
 
+method fromJson*(t:ref RootObj,js:JsonNode) {.base.}=
+  discard
 
 macro dot*(obj: ref object, fld: string): untyped =
   newDotExpr(obj, newIdentNode(fld.strVal))
@@ -129,8 +138,8 @@ macro dot*(obj: object, fld: string): untyped =
 template defineToJsonP*(T:type)=
   proc toJson*(t:ptr T):JsonNode=
     result=JsonNode(kind:JObject) #,fields:{: t.getName.toJson}.toOrderedTable)
-    when T  is ref|ptr:
-      result.add("$type",t.getName.toJson)
+    #when T  is ref|ptr:
+    #  result.add("$type",t.getName.toJson)
     enumAllSerializedFields(T):
       static:
         echo fieldName  ,": ",FieldType ," : "
@@ -150,12 +159,18 @@ template defineToJsonP*(T:type)=
       #echo fieldName  ,": ",FieldType ," : "
       
       when FieldType  is ref|ptr:
-        var tmp=FieldType() #TODO handle drived class
-        fromJson(tmp.addr,js[fieldName])
-        t.dot($(fieldName))=tmp
+        var tmp=createWithName(name(T),js[fieldName])
+        fromJson(tmp,js[fieldName])
+        t.dot($(fieldName))=cast[FieldType](tmp)
       else:
         var tmpP= t.dot($(fieldName)).addr
         fromJson(tmpP,js[fieldName])
+
+template defineJsonFuncsEnum*(T:type)=
+  proc toJson*(t:ptr T):JsonNode=
+    result=JsonNode(kind:JInt,num:t[].ord) #,fields:{: t.getName.toJson}.toOrderedTable)
+  proc fromJson*(t: ptr T,js:JsonNode)=
+    t[]=cast[T](js.num)
 
 #[proc fromJson*(T:type;t: ptr T,js:JsonNode)=
   
@@ -211,8 +226,9 @@ template defineToJsonBM*(T:type)=
 template defineToJson*(T:type)=
   static:
       echo "define toJson for ", name(T)
-  s_creators[name(T)]= proc():ref RootObj=
-    return T()
+  when T  is ref|ptr:
+    s_creators[name(T)]= proc():ref RootObj=
+      return T()
   method toJson*(t: T):JsonNode=
     
     result=JsonNode(kind:JObject)
@@ -232,7 +248,7 @@ template defineToJson*(T:type)=
         else:
             echo "nil"    
       else:
-        var tmp = t.dot($(fieldName)).addr
+        var tmp = t.dot($(fieldName)).unsafeAddr
         result.add(fieldName,tmp.toJson())
 
   method fromJson*(t: T,js:JsonNode)=
@@ -245,7 +261,7 @@ template defineToJson*(T:type)=
           fromJson(tmp,js[fieldName])
           t.dot($(fieldName))=tmp
         else:
-          var tmpP= t.dot($(fieldName)).addr
+          var tmpP= t.dot($(fieldName)).unsafeAddr
           fromJson(tmpP,js[fieldName])
 
 
