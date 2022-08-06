@@ -13,17 +13,20 @@ import
 var s_creators* : Table[string,proc():ref RootObj ]
 
 
+method getName*(t:ref RootObj):string{.base.}=
+  return "RootObj"
+
 template defineGetNameBM*(T:type)=
-  method getName(t:T):string{.base.}=
+  method getName*(t:T):string=
     return T.name
 
 
 template defineGetName*(T:type)=
-  method getName(t:T):string=
+  method getName*(t:T):string=
     return name(T) # if you write T.Name and T has filed with name you got error
 
 template defineGetNameP*(T:type)=
-  proc getName(t:ptr T):string=
+  proc getName*(t:ptr T):string=
     return name(T) # if you write T.Name and T has filed with name you got error
 
 defineGetNameP(int)
@@ -188,7 +191,7 @@ template convertFilds(T:type,t:T | ptr T)=
           var tmp = t.dot($(realFieldName))
           static:
             echo realFieldName
-          result.add(realFieldName,tmp.addr.toJson())
+          result.add(realFieldName,tmp.unsafeAddr.toJson())
         else:
           when fieldCaseDiscriminator == "" :
             var tmp = t.dot($(realFieldName)).unsafeAddr
@@ -213,9 +216,17 @@ template fromJsonFields(T:type,t:T | ptr T,js:JsonNode)=
           fromJson(tmp,js[fieldName])
           t.dot($(fieldName))=tmp
         else:
-          when fieldCaseDiscriminator != "":
-            var tmpP= t.dot($(fieldName)).unsafeAddr
-            fromJson(tmpP,js[fieldName])
+          
+          when fieldCaseDiscriminator == "":
+            when FieldType  is enum:
+              var tmp :type(t.dot($(realFieldName)))
+              static:
+                echo realFieldName
+              fromJson(tmp.addr,js[fieldName])
+              t.dot($(realFieldName))=tmp
+            else:
+              var tmpP= t.dot($(fieldName)).unsafeAddr
+              fromJson(tmpP,js[fieldName])
 
 template defineToJsonP*(T:type)=
   proc toJson*(t:ptr T):JsonNode=
@@ -258,7 +269,7 @@ template defineJsonFuncsEnum*(T:type)=
 
 
 template defineToJsonBM*(T:type)=
-  method toJson(t:T):JsonNode{.base.}=
+  method toJson*(t:T):JsonNode{.base.}=
     result=JsonNode(kind:JObject,fields:{"$type": t.getName.toJson}.toOrderedTable)
     
     enumAllSerializedFields(T):
@@ -333,6 +344,9 @@ template defineToAll*(T:type)=
   defineToJson(T)
   
 
+template defineToAllBM*(T:type)=
+  defineGetNameBM(T)
+  defineToJsonBM(T)
 
 template defineToAllP*(T:type)=
   defineGetNameP(T)
