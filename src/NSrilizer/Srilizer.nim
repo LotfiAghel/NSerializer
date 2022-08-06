@@ -7,8 +7,8 @@ import
   serialization/object_serialization,
   serialization/testing/generic_suite,
   serialization,
-  std/json
-
+  std/json,
+  stew/shims/macros, stew/objects
 
 var s_creators* : Table[string,proc():ref RootObj ]
 
@@ -132,39 +132,101 @@ macro dot*(obj: object, fld: string): untyped =
   newDotExpr(obj, newIdentNode(fld.strVal))
 
 
+proc checkWhen():bool=
+  return true
+macro echoType(T:untyped)=
+  echo T.getImpl().treeRepr 
 
 
+template forOnFields0(T: type, body: untyped): untyped =
+  var typeAst = getType(T)[1]
+  var typeImpl: NimNode
+  let isSymbol = not typeAst.isTuple
+  echo typeAst.treeRepr
+  if not isSymbol:
+    typeImpl = typeAst
+  else:
+    typeImpl = getImpl(typeAst)
+  
+
+  var i = 0
+  for field in recordFields(typeImpl):
+    body
+template forOnFields*(T: type, body): untyped =
+  when T is ref|ptr:
+    type TT = type(default(T)[])
+    forOnFields0(TT, body)
+  else:
+    forOnFields0(T, body)
+
+template convertFilds(T:type,t:T | ptr T)=
+   
+    enumAllSerializedFields(T):
+      static:
+        echo "toJson : ",realFieldName  ,": ",FieldType ," : ",FieldType  is enum ," >",fieldCaseDiscriminator ,"> " #,field.isPublic
+        #echo fieldCaseDiscriminator0.treeRepr
+        #echo fieldCaseDiscriminator0.caseField.treeRepr
+        #echo fieldCaseDiscriminator0.caseBranch.treeRepr
+        #echo fieldCaseBranches
+        #echo fieldCaseBranches0.treeRepr
+        echo ".."
+        #if fieldCaseBranches!=nil:
+        #  echo fieldCaseBranches.treeRepr
+        echo ",,"
+        #[if fieldCaseBranches.len > 0:
+          echo ">", fieldCaseBranches[0].treeRepr]#
+      
+      when FieldType  is ref|ptr:
+        var name=t.getName
+        var tmp= t.dot($(realFieldName))
+        if tmp != nil:
+            result.add(fieldName,t.dot($(realFieldName)).toJson())
+        else:
+            echo "nil"    
+      else:
+        when FieldType  is enum:
+          var tmp = t.dot($(realFieldName))
+          static:
+            echo realFieldName
+          result.add(realFieldName,tmp.addr.toJson())
+        else:
+          when fieldCaseDiscriminator == "" :
+            var tmp = t.dot($(realFieldName)).unsafeAddr
+            static:
+              echo realFieldName
+            result.add(realFieldName,tmp.toJson())
+          else:
+            # TODO
+            discard
+
+
+proc getDiscriminator(field:FieldDescription):NimNode=
+  return newLit(if field.caseField == nil: ""
+                           else: $field.caseField[0][1].skipPragma)
+
+template fromJsonFields(T:type,t:T | ptr T,js:JsonNode)=
+    enumAllSerializedFields(T):
+      #echo fieldName  ,": ",FieldType ," : "
+      if(js.hasKey(fieldName)):
+        when FieldType  is ref|ptr:
+          var tmp=FieldType()
+          fromJson(tmp,js[fieldName])
+          t.dot($(fieldName))=tmp
+        else:
+          when fieldCaseDiscriminator != "":
+            var tmpP= t.dot($(fieldName)).unsafeAddr
+            fromJson(tmpP,js[fieldName])
 
 template defineToJsonP*(T:type)=
   proc toJson*(t:ptr T):JsonNode=
     result=JsonNode(kind:JObject) #,fields:{: t.getName.toJson}.toOrderedTable)
-    #when T  is ref|ptr:
-    #  result.add("$type",t.getName.toJson)
-    enumAllSerializedFields(T):
-      static:
-        echo fieldName  ,": ",FieldType ," : "
-      
-      when FieldType  is ref|ptr:
-        var tmp= t.dot($(fieldName))
-        if tmp != nil:
-            result.add(fieldName,tmp.toJson())
-        else:
-            echo "nil"    
-      else:
-        var tmp= t.dot($(fieldName)).addr
-        result.add(fieldName,tmp.toJson())
+    static:
+      echoType(T)
+    convertFilds(T,t)
+
   proc fromJson*(t: ptr T,js:JsonNode)=
 
-    enumAllSerializedFields(T):
-      #echo fieldName  ,": ",FieldType ," : "
-      
-      when FieldType  is ref|ptr:
-        var tmp=createWithName(name(T),js[fieldName])
-        fromJson(tmp,js[fieldName])
-        t.dot($(fieldName))=cast[FieldType](tmp)
-      else:
-        var tmpP= t.dot($(fieldName)).addr
-        fromJson(tmpP,js[fieldName])
+    fromJsonFields(T,t,js)
 
 template defineJsonFuncsEnum*(T:type)=
   proc toJson*(t:ptr T):JsonNode=
@@ -222,6 +284,17 @@ template defineToJsonBM*(T:type)=
         var tmpP= t.dot($(fieldName)).addr
         fromJson(tmpP,js[fieldName])
 
+macro myGetType(T: type): untyped =
+  var typeAst = getType(T)[1]
+  var typeImpl: NimNode
+  let isSymbol = not typeAst.isTuple
+  echo typeAst.treeRepr
+  if not isSymbol:
+    typeImpl = typeAst
+  else:
+    typeImpl = getImpl(typeAst)
+  return typeImpl
+
 
 template defineToJson*(T:type)=
   static:
@@ -230,27 +303,15 @@ template defineToJson*(T:type)=
     s_creators[name(T)]= proc():ref RootObj=
       return T()
   method toJson*(t: T):JsonNode=
-    
+    #static:
+    #  echoType(T)
     result=JsonNode(kind:JObject)
     when T  is ref|ptr:
         var name=t.getName
         result.add("$type",name.addr.toJson)
+    convertFilds(T,t)
     
-    enumAllSerializedFields(T):
-      static:
-        echo "toJson f",fieldName  ,": ",FieldType ," : ",FieldType  is ref|ptr
-      
-      when FieldType  is ref|ptr:
-        var name=t.getName
-        var tmp= t.dot($(fieldName))
-        if tmp != nil:
-            result.add(fieldName,t.dot($(fieldName)).toJson())
-        else:
-            echo "nil"    
-      else:
-        var tmp = t.dot($(fieldName)).unsafeAddr
-        result.add(fieldName,tmp.toJson())
-
+        
   method fromJson*(t: T,js:JsonNode)=
 
     enumAllSerializedFields(T):
@@ -261,8 +322,9 @@ template defineToJson*(T:type)=
           fromJson(tmp,js[fieldName])
           t.dot($(fieldName))=tmp
         else:
-          var tmpP= t.dot($(fieldName)).unsafeAddr
-          fromJson(tmpP,js[fieldName])
+          when fieldCaseDiscriminator != "":
+            var tmpP= t.dot($(fieldName)).unsafeAddr
+            fromJson(tmpP,js[fieldName])
 
 
 
