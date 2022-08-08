@@ -78,7 +78,7 @@ proc fromJsonS*[T](t:ptr seq[T],js:JsonNode) =
   for i in 0..<js.elems.len:
     T.fromJson(t[][i].addr,js.elems[i]  )
 
-proc createWithName(defaultName:string,js:JsonNode):ref RootObj=
+proc createWithName*(defaultName:string,js:JsonNode):ref RootObj=
   echo fmt"create {defaultName} ", js
   if js.hasKey("$type"):
     var z=js["$type"].str
@@ -87,6 +87,18 @@ proc createWithName(defaultName:string,js:JsonNode):ref RootObj=
   else:
     result=s_creators[defaultName]()
 
+proc createWithName*[T](js:JsonNode):T=
+  
+  if js.hasKey("$type"):
+    var z=js["$type"].str
+    echo fmt"create {z}"
+    static:
+      echo "createWithName[",name(T),"]"
+    var functions=s_creators[z]
+    result=cast[T](functions())
+  else:
+    result=T()
+
 proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
   t[].setlen(js.elems.len)
   for i in 0..<js.elems.len:
@@ -94,7 +106,7 @@ proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
       static:
         echo "T is ref|ptr"
       #echo fmt"T is ref|ptr {i}"
-      var tmp=createWithName(name(T),js.elems[i])# T() #TODO handle drived class
+      var tmp=createWithName[T](js.elems[i])# T() #TODO handle drived class
       t[][i]=cast[T](tmp)
       fromJson(t[][i],js.elems[i]  )
     else:
@@ -180,7 +192,6 @@ template convertFilds(T:type,t:T | ptr T)=
           echo ">", fieldCaseBranches[0].treeRepr]#
       
       when FieldType  is ref|ptr:
-        var name=t.getName
         var tmp= t.dot($(realFieldName))
         if tmp != nil:
             result.add(fieldName,t.dot($(realFieldName)).toJson())
@@ -212,8 +223,10 @@ template fromJsonFields(T:type,t:T | ptr T,js:JsonNode)=
       #echo fieldName  ,": ",FieldType ," : "
       if(js.hasKey(fieldName)):
         when FieldType  is ref|ptr:
-          var tmp=FieldType()
+          var tmp=createWithName[FieldType](js[fieldName])
           fromJson(tmp,js[fieldName])
+          static:
+            echo fieldName
           t.dot($(fieldName))=tmp
         else:
           
@@ -322,21 +335,10 @@ template defineToJson*(T:type)=
         result.add("$type",name.addr.toJson)
     convertFilds(T,t)
     
-        
   method fromJson*(t: T,js:JsonNode)=
 
-    enumAllSerializedFields(T):
-      #echo fieldName  ,": ",FieldType ," : "
-      if(js.hasKey(fieldName)):
-        when FieldType  is ref|ptr:
-          var tmp=FieldType()
-          fromJson(tmp,js[fieldName])
-          t.dot($(fieldName))=tmp
-        else:
-          when fieldCaseDiscriminator != "":
-            var tmpP= t.dot($(fieldName)).unsafeAddr
-            fromJson(tmpP,js[fieldName])
-
+    fromJsonFields(T,t,js)      
+  
 
 
 template defineToAll*(T:type)=
