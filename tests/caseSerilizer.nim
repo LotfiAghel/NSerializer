@@ -8,7 +8,7 @@ import
   serialization/testing/generic_suite,
   serialization,
   std/json,
-  ../src/NSrilizer/Srilizer
+  ../src/NSerializer/Serializer
 
 static:
   echo "-=============---"
@@ -37,8 +37,23 @@ echo "hii"
 defineJsonFuncsEnum(PlayerRole)
 
 
-defineToAllP(GameEventHolder)
+implAllFuncsP(GameEventHolder)
 
+
+static :
+  var typeAst = getType(GameEventHolder)[1]
+  var typeImpl: NimNode
+  let isSymbol = not typeAst.isTuple
+
+  if not isSymbol:
+    typeImpl = typeAst
+  else:
+    typeImpl = getImpl(genSym(typeAst))
+  
+
+  
+  for field in recordFields(typeImpl):
+    echo "salam"
 
 
 var

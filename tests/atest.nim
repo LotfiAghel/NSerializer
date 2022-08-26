@@ -8,7 +8,7 @@ import
   serialization/testing/generic_suite,
   serialization,
   std/json,
-  ../src/NSrilizer/Srilizer
+  ../src/NSerializer/Serializer
 
 static:
   echo "-=============---"
@@ -27,6 +27,8 @@ type
   ZombieCreate* = ref object of GameEvent
     health*:int
     changeBag*:bool
+    s* : HashSet[int]
+    
 
   ZombieDead* = ref object of GameEvent
     health*:int
@@ -35,22 +37,35 @@ type
     health*:int
     role*:PlayerRole
 
+  GenericClass[T] = ref object of GameEvent
+    t*:T
+
+
+
+
 defineJsonFuncsEnum(PlayerRole)
 
-defineToAll(GameEvent)
+implAllFuncs(GameEvent)
 
 
-defineToAll(ZombieCreate)
-defineToAll(ZombieDead)
-defineToAll(PlayerJoin)
-
-defineToAllP(GameEventHolder)
+implAllFuncs(ZombieCreate)
+implAllFuncs(ZombieDead)
+implAllFuncs(PlayerJoin)
 
 
-var z: GameEvent =ZombieCreate(health:100)
+implAllFuncsP(GameEventHolder)
+
+#implAllFuncs(GenericClass)
+implAllFuncs(GenericClass[GameEventHolder])
+
+
+
 var
-    a=GameEventHolder(action:PlayerJoin(health:100,role:PlayerRole.Second))
+    a=GameEventHolder(action:ZombieCreate(health:100,s : initHashSet[int]()))
+    b=GenericClass[GameEventHolder](t:GameEventHolder(action:PlayerJoin(health:100,role:PlayerRole.Second)))
 
 
 
 echo a.addr.toJson()
+echo b.toJson()
+#output false

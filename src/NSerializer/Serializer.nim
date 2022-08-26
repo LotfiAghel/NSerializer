@@ -16,25 +16,25 @@ var s_creators* : Table[string,proc():ref RootObj ]
 method getName*(t:ref RootObj):string{.base.}=
   return "RootObj"
 
-template defineGetNameBM*(T:type)=
+template implGetNameBM*(T:type)=
   method getName*(t:T):string=
     return T.name
 
 
-template defineGetName*(T:type)=
+template implGetName*(T:type)=
   method getName*(t:T):string=
     return name(T) # if you write T.Name and T has filed with name you got error
 
-template defineGetNameP*(T:type)=
+template implGetNameP*(T:type)=
   proc getName*(t:ptr T):string=
     return name(T) # if you write T.Name and T has filed with name you got error
 
-defineGetNameP(int)
-defineGetNameP(bool)
+implGetNameP(int)
+implGetNameP(bool)
 
-defineGetNameP(string)
+implGetNameP(string)
 
-defineGetNameBM(DateTime)
+implGetNameBM(DateTime)
 
 
 proc toJson*(t:ptr int):JsonNode =
@@ -74,9 +74,26 @@ proc toJson*[T](t:ptr seq[T]):JsonNode =
       result.add toJson(t[][i].addr)
 
 proc fromJsonS*[T](t:ptr seq[T],js:JsonNode) =
-  t[].setlen(js.elems.len)
+  t[].setLen(js.elems.len)
   for i in 0..<js.elems.len:
     T.fromJson(t[][i].addr,js.elems[i]  )
+
+
+proc toJson*[T](t:ptr HashSet[T]):JsonNode =
+  result=JsonNode(kind:JArray)
+  for i in t[]:
+    when T is ref|ptr:
+      result.add toJson(i)
+    else:
+      var x=i
+      result.add toJson(x.addr)
+
+proc fromJson*[T](a:ptr HashSet[T],js:JsonNode) =
+  for i in 0..<js.elems.len:
+    var t:T
+    fromJson(t.addr,js.elems[i]  )
+    a[].incl t
+
 
 proc createWithName*(defaultName:string,js:JsonNode):ref RootObj=
   echo fmt"create {defaultName} ", js
@@ -100,7 +117,7 @@ proc createWithName*[T](js:JsonNode):T=
     result=T()
 
 proc fromJson*[T](t:ptr seq[T],js:JsonNode) =
-  t[].setlen(js.elems.len)
+  t[].setLen(js.elems.len)
   for i in 0..<js.elems.len:
     when T is ref|ptr:
       static:
@@ -241,7 +258,7 @@ template fromJsonFields(T:type,t:T | ptr T,js:JsonNode)=
               var tmpP= t.dot($(fieldName)).unsafeAddr
               fromJson(tmpP,js[fieldName])
 
-template defineToJsonP*(T:type)=
+template impelSerDesrFuncsP*(T:type)=
   proc toJson*(t:ptr T):JsonNode=
     result=JsonNode(kind:JObject) #,fields:{: t.getName.toJson}.toOrderedTable)
     static:
@@ -281,7 +298,7 @@ template defineJsonFuncsEnum*(T:type)=
 
 
 
-template defineToJsonBM*(T:type)=
+template impelSerDesrFuncsBM*(T:type)=
   method toJson*(t:T):JsonNode{.base.}=
     result=JsonNode(kind:JObject,fields:{"$type": t.getName.toJson}.toOrderedTable)
     
@@ -320,7 +337,7 @@ macro myGetType(T: type): untyped =
   return typeImpl
 
 
-template defineToJson*(T:type)=
+template impelSerDesrFuncs*(T:type)=
   static:
       echo "define toJson for ", name(T)
   when T  is ref|ptr:
@@ -341,15 +358,15 @@ template defineToJson*(T:type)=
   
 
 
-template defineToAll*(T:type)=
-  defineGetName(T)
-  defineToJson(T)
+template implAllFuncs*(T:type)=
+  implGetName(T)
+  impelSerDesrFuncs(T)
   
 
-template defineToAllBM*(T:type)=
-  defineGetNameBM(T)
-  defineToJsonBM(T)
+template implAllFuncsBM*(T:type)=
+  implGetNameBM(T)
+  impelSerDesrFuncsBM(T)
 
-template defineToAllP*(T:type)=
-  defineGetNameP(T)
-  defineToJsonP(T)
+template implAllFuncsP*(T:type)=
+  implGetNameP(T)
+  impelSerDesrFuncsP(T)

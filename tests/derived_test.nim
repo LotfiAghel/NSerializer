@@ -8,7 +8,7 @@ import
   serialization/testing/generic_suite,
   serialization,
   std/json,
-  ../src/NSrilizer/Srilizer
+  ../src/NSerializer/Serializer
 static:
   echo "-=============---"
 {.used.}
@@ -48,7 +48,7 @@ type
   DerivedFromRefType* = ref object of DerivedRefType
     e*: int
     next*: DerivedRefType
-    list: seq[DerivedRefType]
+    list* : seq[DerivedRefType]
 
   GenericTest*[T]=  ref object of DerivedRefType
     t*:T
@@ -108,8 +108,6 @@ type
     r*: ref Simple
     o*: Option[Simple]
 
-  HoldsArray* = object
-    data*: seq[int]
 
   AnonTuple* = (int, string, float64)
 
@@ -132,13 +130,14 @@ echo jsonNode
 #[method toJson(t:BaseType):JsonNode {.base.}=
   return parseJson("""{"$type": \"BaseType\"}""")]#
 
+implAllFuncs(BaseType)
+implAllFuncs(DerivedType)
+implAllFuncs(DerivedRefType)
 
-defineToAll(DerivedRefType)
 
-
-defineToAll(DerivedFromRefType)
-defineToAll(GenericTestInt)
-defineToAll(GenericTest[int])
+implAllFuncs(DerivedFromRefType)
+implAllFuncs(GenericTestInt)
+implAllFuncs(GenericTest[int])
 
 
 var zzzz:DerivedRefType= GenericTest[int](t:123456)
@@ -171,7 +170,7 @@ static:
 
 
 
-echo f.getName()
+echo a.getName()
 echo f.next != nil
 echo "==============--===="
 var z = f.toJson()
@@ -179,7 +178,7 @@ echo z
 echo "==============--==== json"
 
 var f2 = DerivedFromRefType()
-
+echo d.getName()
 echo "f2.list.len " , f2.list.len
 fromJson(f2, z)
 
