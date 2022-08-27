@@ -5,10 +5,14 @@ a Serializer with  derived class handling such as NewthonSoft serializer in C# N
 
 handle derived type with type name handlening
 
-support enums
-support Generics
+# support
+## support Drived Class
+## support enums
+## support Generics
+## support seq,hashTable
+## dont suport case Arm Fields
 
-dont support case items 
+
 
 
 
