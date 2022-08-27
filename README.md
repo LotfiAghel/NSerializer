@@ -45,7 +45,9 @@ var
     b=GenericClass[GameEventHolder](t:GameEventHolder(action:PlayerJoin(health:100,role:PlayerRole.Second)))
 
 echo b.toJson()
-
+```
+output:
+```
 {
     "$type":"GenericClass[GameEventHolder]",
     "t":{
