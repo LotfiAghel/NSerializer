@@ -17,11 +17,37 @@ dont support case items
 
 
 #be careful it's in very primary stage
-`
-var b=GenericClass[GameEventHolder](t:GameEventHolder(action:PlayerJoin(health:100,role:PlayerRole.Second)))
+```
+type  
+  GameEventHolder* = object 
+    action* : GameEvent
+
+  GameEvent = ref object of RootObj
+  
+  PlayerRole* =  enum
+    None=0,First=1 , Second=2, 
+    
+  PlayerJoin* = ref object of GameEvent
+    health*:int
+    role*:PlayerRole
+
+  GenericClass[T] = ref object of GameEvent
+    t*:T
+
+defineJsonFuncsEnum(PlayerRole)
+
+implAllFuncs(GameEvent)
+implAllFuncs(PlayerJoin)
+implAllFuncsP(GameEventHolder)
+implAllFuncs(GenericClass[GameEventHolder])
+
+var
+    b=GenericClass[GameEventHolder](t:GameEventHolder(action:PlayerJoin(health:100,role:PlayerRole.Second)))
+
+echo b.toJson()
 
 {
-    "$type":"GenericClass[atest.GameEventHolder]",
+    "$type":"GenericClass[GameEventHolder]",
     "t":{
         "action":{
             "$type":"PlayerJoin",
@@ -30,5 +56,5 @@ var b=GenericClass[GameEventHolder](t:GameEventHolder(action:PlayerJoin(health:1
         }
     }
 }
-`
+```
 
