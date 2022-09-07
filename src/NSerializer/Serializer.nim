@@ -104,6 +104,15 @@ proc createWithName*(defaultName:string,js:JsonNode):ref RootObj=
   else:
     result=s_creators[defaultName]()
 
+proc getTypeName*[T]():string=
+  return name(T)
+
+proc getTypeName*(js:JsonNode):string=
+  if js.hasKey("$type"):
+    return js["$type"].str
+  else:
+    return ""
+
 proc createWithName*[T](js:JsonNode):T=
   
   if js.hasKey("$type"):
