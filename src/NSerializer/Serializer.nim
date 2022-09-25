@@ -30,6 +30,7 @@ template implGetNameP*(T:type)=
     return name(T) # if you write T.Name and T has filed with name you got error
 
 implGetNameP(int)
+implGetNameP(float)
 implGetNameP(bool)
 
 implGetNameP(string)
@@ -39,6 +40,9 @@ implGetNameBM(DateTime)
 
 proc toJson*(t:ptr int):JsonNode =
   return JsonNode(kind:JInt,num:t[])
+
+proc toJson*(t:ptr float):JsonNode =
+  return JsonNode(kind:JFloat,fnum:t[])
 
 proc toJson*(t:ptr bool):JsonNode =
   return JsonNode(kind:JBool,bval:t[])
@@ -61,6 +65,9 @@ proc fromJson*(t:ptr string,js:JsonNode) =
 
 proc fromJson*(t:ptr int,js:JsonNode) =
   t[]=js.num.int
+
+proc fromJson*(t:ptr float,js:JsonNode) =
+  t[]=js.fnum.float
 
 proc fromJson*(t:ptr bool,js:JsonNode) =
   t[]=js.bval
