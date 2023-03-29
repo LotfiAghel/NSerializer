@@ -8,6 +8,7 @@ handle derived type with type name handlening
 this project create json serilizer/deserilizer  function at compileTime with Macro
 
 be careful it's in very primary stage
+BE CAREFULL IT'S IN VERY PRIMARY STAGE :( but i use in real project dont worry a lot
 # support
 ## support Drived Class
 ## support enums
