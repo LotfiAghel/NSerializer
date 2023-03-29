@@ -1,7 +1,7 @@
 # NSerializer
 
 
-a Serializer with  derived class handling such as NewthonSoft serializer in C# NimSerializer
+a Serializer with  derived class handling (Type name handling ) such as NewthonSoft serializer in C# NimSerializer
 
 handle derived type with type name handlening
 
