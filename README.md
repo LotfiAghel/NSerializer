@@ -5,6 +5,8 @@ a Serializer with  derived class handling such as NewthonSoft serializer in C# N
 
 handle derived type with type name handlening
 
+this project create json serilizer/deserilizer  function at compileTime with Macro
+
 # support
 ## support Drived Class
 ## support enums
@@ -65,4 +67,4 @@ output:
 ```
 
 
-this project create json serilizer/deserilizer  function at compileTime with Macro
+
