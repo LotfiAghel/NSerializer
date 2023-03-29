@@ -7,6 +7,7 @@ handle derived type with type name handlening
 
 this project create json serilizer/deserilizer  function at compileTime with Macro
 
+be careful it's in very primary stage
 # support
 ## support Drived Class
 ## support enums
@@ -22,7 +23,7 @@ this project create json serilizer/deserilizer  function at compileTime with Mac
 
 
 
-#be careful it's in very primary stage
+
 ```
 type  
   GameEventHolder* = object 
